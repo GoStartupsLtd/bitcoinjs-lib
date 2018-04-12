@@ -3,6 +3,7 @@
 
 var Buffer = require('safe-buffer').Buffer
 var varuint = require('varuint-bitcoin')
+var eq = require('equihashjs-verify')
 
 var Transaction = require('./transaction')
 var Block = require('./block')
@@ -19,6 +20,7 @@ function BlockGold () {
   this.solutionLength = 0
   this.solution = null
   this.transactions = []
+  this.btgForkHeight = 491407
 }
 
 BlockGold.prototype = Object.create(Block.prototype)
@@ -144,6 +146,24 @@ BlockGold.prototype.toBuffer = function (headersOnly) {
 
 BlockGold.prototype.toHex = function (headersOnly) {
   return this.toBuffer(headersOnly).toString('hex')
+}
+
+BlockGold.prototype.checkProofOfWork = function (validateSolution, network) {
+  var hash = this.getHash().reverse()
+  var target = Block.calculateTarget(this.bits)
+  var validTarget = hash.compare(target) <= 0
+
+  if (!validTarget) {
+    return false
+  }
+
+  if (validateSolution && this.height >= this.btgForkHeight) {
+    var header = this.toHex(true)
+    var equihash = new eq.Equihash(network || eq.networks.bitcoingold)
+    return equihash.verify(Buffer.from(header, 'hex'), this.solution)
+  } else {
+    return true
+  }
 }
 
 module.exports = BlockGold

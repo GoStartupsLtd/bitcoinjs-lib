@@ -51,4 +51,24 @@ describe('BlockGold', function () {
       })
     })
   })
+
+  describe('checkProofOfWork', function () {
+    fixtures.validHex.forEach(function (f) {
+      var block
+
+      beforeEach(function () {
+        block = BlockGold.fromHex(f.hex)
+      })
+
+      it('imports ' + f.description, function () {
+        var pow = block.checkProofOfWork()
+        assert.strictEqual(true, pow)
+      })
+
+      it('imports no equihash' + f.description, function () {
+        var pow = block.checkProofOfWork(true)
+        assert.strictEqual(true, pow)
+      })
+    })
+  })
 })
