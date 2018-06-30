@@ -6,6 +6,7 @@ var bcrypto = require('./crypto')
 var varuint = require('varuint-bitcoin')
 var networks = require('./networks')
 var eq = require('equihashjs-verify')
+var lwma = require('./lwma')
 
 var Transaction = require('./transaction')
 var Block = require('./block')
@@ -173,11 +174,19 @@ BlockGold.prototype.toHex = function (headersOnly, useLegacyFormat) {
   return this.toBuffer(headersOnly, useLegacyFormat).toString('hex')
 }
 
-BlockGold.prototype.checkProofOfWork = function (validateSolution, network) {
+BlockGold.prototype.checkProofOfWork = function (validateSolution, network, previousBlocks) {
   network = network || networks.bitcoingold
-  var hash = this.getHash().reverse()
-  var target = Block.calculateTarget(this.bits)
-  var validTarget = hash.compare(target) <= 0
+  var validTarget = false
+
+  // Testnet with old lwma params are not supported yet, if needed to validate such blocks - add new network in Network.js
+  if (network.lwma && this.height >= network.lwma.enableHeight) {
+    var bits = lwma.calcNextBits(this, previousBlocks, network.lwma)
+    validTarget = this.bits === bits
+  } else {
+    var hash = this.getHash().reverse()
+    var target = Block.calculateTarget(this.bits)
+    validTarget = hash.compare(target) <= 0
+  }
 
   if (!validTarget) {
     return false
@@ -185,7 +194,12 @@ BlockGold.prototype.checkProofOfWork = function (validateSolution, network) {
 
   if (validateSolution && this.height >= network.forkHeight) {
     var header = this.toHex(true)
-    var equihash = new eq.Equihash(network.equihash || eq.networks.bitcoingold)
+    var equihashParams = network.equihash || eq.networks.bitcoingold
+    if (network.equihash && network.equihash.equihashForkHeight && this.height <= network.equihash.equihashForkHeight) {
+      equihashParams = network.equihash.preEquihashFork
+    }
+
+    var equihash = new eq.Equihash(equihashParams)
     return equihash.verify(Buffer.from(header, 'hex'), this.solution)
   } else {
     return true
