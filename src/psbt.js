@@ -674,6 +674,9 @@ function canFinalize(input, script, scriptType) {
     case 'multisig':
       const p2ms = payments.p2ms({ output: script });
       return hasSigs(p2ms.m, input.partialSig, p2ms.pubkeys);
+    case 'cltvmultisig':
+      const p2cltvms = payments.p2cltvms({ output: script });
+      return hasSigs(p2cltvms.m, input.partialSig, p2cltvms.pubkeys);
     default:
       return false;
   }
@@ -713,6 +716,7 @@ function isPaymentFactory(payment) {
     }
   };
 }
+const isP2CLTVMS = isPaymentFactory(payments.p2cltvms);
 const isP2MS = isPaymentFactory(payments.p2ms);
 const isP2PK = isPaymentFactory(payments.p2pk);
 const isP2PKH = isPaymentFactory(payments.p2pkh);
@@ -1046,10 +1050,17 @@ function getPayment(script, scriptType, partialSig) {
   let payment;
   switch (scriptType) {
     case 'multisig':
-      const sigs = getSortedSigs(script, partialSig);
+      const sigs = getSortedSigs(script, partialSig, scriptType);
       payment = payments.p2ms({
         output: script,
         signatures: sigs,
+      });
+      break;
+    case 'cltvmultisig':
+      const cltvSigs = getSortedSigs(script, partialSig, scriptType);
+      payment = payments.p2cltvms({
+        output: script,
+        signatures: cltvSigs,
       });
       break;
     case 'pubkey':
@@ -1149,8 +1160,7 @@ function getSignersFromHD(inputIndex, inputs, hdKeyPair) {
   });
   return signers;
 }
-function getSortedSigs(script, partialSig) {
-  const p2ms = payments.p2ms({ output: script });
+function getSortedSigsForMsPayment(p2ms, partialSig) {
   // for each pubkey in order of p2ms script
   return p2ms.pubkeys
     .map(pk => {
@@ -1164,6 +1174,13 @@ function getSortedSigs(script, partialSig) {
       // this last filter removes all the undefined items in the array.
     })
     .filter(v => !!v);
+}
+function getSortedSigs(script, partialSig, type) {
+  const payment =
+    type === 'multisig'
+      ? payments.p2ms({ output: script })
+      : payments.p2cltvms({ output: script });
+  return getSortedSigsForMsPayment(payment, partialSig);
 }
 function scriptWitnessToWitnessStack(buffer) {
   let offset = 0;
@@ -1420,6 +1437,7 @@ function classifyScript(script) {
   if (isP2PKH(script)) return 'pubkeyhash';
   if (isP2MS(script)) return 'multisig';
   if (isP2PK(script)) return 'pubkey';
+  if (isP2CLTVMS(script)) return 'cltvmultisig';
   return 'nonstandard';
 }
 function range(n) {
