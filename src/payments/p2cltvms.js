@@ -38,7 +38,6 @@ function p2cltvms(a, opts) {
     fallbackLocktime = decodeNumber(chunks[0]);
     const p2msOutput = chunks.slice(3);
     innerPayment.output = bscript.compile(p2msOutput);
-    console.log('inner payout output:', innerPayment.output.toString('hex'));
   }
   const o = p2ms_1.p2ms(innerPayment, opts);
   o.m, o.n, o.pubkey; // force lazy decoding
