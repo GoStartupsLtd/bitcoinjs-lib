@@ -59,7 +59,7 @@ export function p2cltvms(a: Payment, opts?: PaymentOpts): Payment {
 
   lazy.prop(o, 'name', () => {
     if (!o.m || !o.n) return;
-    return `p2cltvms(${o.m} of ${o.n})`;
+    return `p2cltvms(${o.locktime}, ${o.m} of ${o.n})`;
   });
   return Object.assign({}, o, a);
 }
